@@ -1,0 +1,35 @@
+{
+  "data": [
+    {
+      "id": "1",
+      "type": "program",
+      "attributes": {
+        "handle": "security",
+        "name": "Security Program",
+        "currency": "USD",
+        "submission_state": "open",
+        "offers_bounties": true,
+        "created_at": "2020-01-01T00:00:00.000Z",
+        "updated_at": "2024-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "2",
+      "type": "program",
+      "attributes": {
+        "handle": "bounty-program",
+        "name": "Bounty Program",
+        "currency": "USD",
+        "submission_state": "open",
+        "offers_bounties": true,
+        "created_at": "2021-06-15T00:00:00.000Z",
+        "updated_at": "2024-02-01T00:00:00.000Z"
+      }
+    }
+  ],
+  "links": {
+    "self": "https://api.hackerone.com/v1/programs?page%5Bnumber%5D=1",
+    "next": "https://api.hackerone.com/v1/programs?page%5Bnumber%5D=2",
+    "last": "https://api.hackerone.com/v1/programs?page%5Bnumber%5D=5"
+  }
+}

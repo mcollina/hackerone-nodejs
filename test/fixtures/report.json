@@ -1,0 +1,41 @@
+{
+  "data": {
+    "id": "12345",
+    "type": "report",
+    "attributes": {
+      "title": "XSS in search functionality",
+      "state": "triaged",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "submitted_at": "2024-01-15T10:30:00.000Z",
+      "vulnerability_information": "Found XSS vulnerability in the search input field.\n\n## Steps to reproduce\n1. Navigate to search page\n2. Enter `<script>alert(1)</script>` in search box\n3. Observe alert popup",
+      "triaged_at": "2024-01-16T08:00:00.000Z",
+      "closed_at": null,
+      "last_activity_at": "2024-01-17T14:00:00.000Z",
+      "first_program_activity_at": "2024-01-16T08:00:00.000Z",
+      "severity_rating": "medium"
+    },
+    "relationships": {
+      "program": {
+        "data": { "id": "1", "type": "program" }
+      },
+      "reporter": {
+        "data": { "id": "100", "type": "user" }
+      },
+      "attachments": {
+        "data": [
+          {
+            "id": "att-1",
+            "type": "attachment",
+            "attributes": {
+              "file_name": "screenshot.png",
+              "content_type": "image/png",
+              "file_size": 12345,
+              "expiring_url": "https://hackerone-attachments.s3.amazonaws.com/screenshot.png?token=abc",
+              "created_at": "2024-01-15T10:30:00.000Z"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

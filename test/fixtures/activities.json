@@ -1,0 +1,67 @@
+{
+  "data": [
+    {
+      "id": "act-1",
+      "type": "activity-comment",
+      "attributes": {
+        "message": "Thanks for the report! We're investigating this issue.",
+        "created_at": "2024-01-16T08:00:00.000Z",
+        "updated_at": "2024-01-16T08:00:00.000Z",
+        "internal": false
+      },
+      "relationships": {
+        "actor": {
+          "data": { "id": "200", "type": "user" }
+        }
+      }
+    },
+    {
+      "id": "act-2",
+      "type": "activity-bug-triaged",
+      "attributes": {
+        "message": null,
+        "created_at": "2024-01-16T08:05:00.000Z",
+        "updated_at": "2024-01-16T08:05:00.000Z",
+        "internal": false
+      },
+      "relationships": {
+        "actor": {
+          "data": { "id": "200", "type": "user" }
+        }
+      }
+    },
+    {
+      "id": "act-3",
+      "type": "activity-comment",
+      "attributes": {
+        "message": "Here's additional context with an attachment.",
+        "created_at": "2024-01-17T14:00:00.000Z",
+        "updated_at": "2024-01-17T14:00:00.000Z",
+        "internal": false
+      },
+      "relationships": {
+        "actor": {
+          "data": { "id": "100", "type": "user" }
+        },
+        "attachments": {
+          "data": [
+            {
+              "id": "att-2",
+              "type": "attachment",
+              "attributes": {
+                "file_name": "poc.mp4",
+                "content_type": "video/mp4",
+                "file_size": 5242880,
+                "expiring_url": "https://hackerone-attachments.s3.amazonaws.com/poc.mp4?token=xyz",
+                "created_at": "2024-01-17T14:00:00.000Z"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "links": {
+    "self": "https://api.hackerone.com/v1/incremental/activities?handle=security"
+  }
+}

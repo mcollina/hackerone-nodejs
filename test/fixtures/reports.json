@@ -1,0 +1,57 @@
+{
+  "data": [
+    {
+      "id": "12345",
+      "type": "report",
+      "attributes": {
+        "title": "XSS in search functionality",
+        "state": "triaged",
+        "created_at": "2024-01-15T10:30:00.000Z",
+        "submitted_at": "2024-01-15T10:30:00.000Z",
+        "vulnerability_information": "Found XSS vulnerability in the search input field.",
+        "triaged_at": "2024-01-16T08:00:00.000Z",
+        "closed_at": null,
+        "last_activity_at": "2024-01-17T14:00:00.000Z",
+        "first_program_activity_at": "2024-01-16T08:00:00.000Z",
+        "severity_rating": "medium"
+      },
+      "relationships": {
+        "program": {
+          "data": { "id": "1", "type": "program" }
+        },
+        "reporter": {
+          "data": { "id": "100", "type": "user" }
+        }
+      }
+    },
+    {
+      "id": "12346",
+      "type": "report",
+      "attributes": {
+        "title": "SSRF in webhook handler",
+        "state": "new",
+        "created_at": "2024-01-20T15:45:00.000Z",
+        "submitted_at": "2024-01-20T15:45:00.000Z",
+        "vulnerability_information": "Server-side request forgery found in webhook endpoint.",
+        "triaged_at": null,
+        "closed_at": null,
+        "last_activity_at": "2024-01-20T15:45:00.000Z",
+        "first_program_activity_at": null,
+        "severity_rating": "high"
+      },
+      "relationships": {
+        "program": {
+          "data": { "id": "1", "type": "program" }
+        },
+        "reporter": {
+          "data": { "id": "101", "type": "user" }
+        }
+      }
+    }
+  ],
+  "links": {
+    "self": "https://api.hackerone.com/v1/reports?page%5Bnumber%5D=1",
+    "next": "https://api.hackerone.com/v1/reports?page%5Bnumber%5D=2",
+    "last": "https://api.hackerone.com/v1/reports?page%5Bnumber%5D=10"
+  }
+}

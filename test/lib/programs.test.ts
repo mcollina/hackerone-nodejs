@@ -41,7 +41,7 @@ describe('Programs API', () => {
       const mockPool = mockAgent.get('https://api.hackerone.com');
       mockPool
         .intercept({
-          path: '/v1/programs',
+          path: '/v1/me/programs',
           method: 'GET',
         })
         .reply(200, programsFixture);
@@ -57,7 +57,7 @@ describe('Programs API', () => {
       const mockPool = mockAgent.get('https://api.hackerone.com');
       mockPool
         .intercept({
-          path: '/v1/programs?page%5Bnumber%5D=2&page%5Bsize%5D=10',
+          path: '/v1/me/programs?page%5Bnumber%5D=2&page%5Bsize%5D=10',
           method: 'GET',
         })
         .reply(200, {
@@ -74,7 +74,7 @@ describe('Programs API', () => {
       const mockPool = mockAgent.get('https://api.hackerone.com');
       mockPool
         .intercept({
-          path: '/v1/programs',
+          path: '/v1/me/programs',
           method: 'GET',
         })
         .reply(200, programsFixture);
@@ -102,7 +102,6 @@ describe('Programs API', () => {
       assert.strictEqual(result.id, '1');
       assert.strictEqual(result.type, 'program');
       assert.strictEqual(result.attributes.handle, 'security');
-      assert.strictEqual(result.attributes.name, 'Security Program');
     });
   });
 

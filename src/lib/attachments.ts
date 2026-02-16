@@ -41,6 +41,10 @@ export async function downloadReportWithAttachments(
     await writeFile(activitiesPath, JSON.stringify(activities, null, 2));
   }
 
+  // Save report markdown
+  const markdownPath = join(destDir, 'report.md');
+  await writeFile(markdownPath, generateReportMarkdown(report, activities));
+
   // Collect all attachments
   const allAttachments = collectAllAttachments(report, activities);
   const attachmentPaths: string[] = [];
@@ -68,4 +72,61 @@ export function collectAllAttachments(
   );
 
   return [...reportAttachments, ...activityAttachments];
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toISOString().split('T')[0];
+}
+
+export function generateReportMarkdown(
+  report: Report,
+  activities: Activity[]
+): string {
+  const { attributes, relationships } = report;
+  const reporter = relationships?.reporter?.data?.attributes?.username ?? 'Unknown';
+  const program = relationships?.program?.data?.attributes?.handle ?? 'Unknown';
+  const attachments = collectAllAttachments(report, activities);
+
+  let md = `# ${attributes.title}
+
+| Field | Value |
+|-------|-------|
+| **Report ID** | ${report.id} |
+| **State** | ${attributes.state} |
+| **Reporter** | ${reporter} |
+| **Program** | ${program} |
+| **Submitted** | ${formatDate(attributes.created_at)} |
+| **Severity** | ${attributes.severity_rating ?? 'Not rated'} |
+
+## Description
+
+${attributes.vulnerability_information}
+`;
+
+  if (attachments.length > 0) {
+    md += `\n## Attachments\n\n`;
+    for (const att of attachments) {
+      md += `- [${att.attributes.file_name}](attachments/${att.attributes.file_name})\n`;
+    }
+  }
+
+  if (activities.length > 0) {
+    md += `\n## Activity\n\n`;
+    for (const activity of activities) {
+      const date = formatDate(activity.attributes.created_at);
+      const actor = activity.relationships?.actor?.data?.attributes?.username ?? 'system';
+      const internal = activity.attributes.internal ? ' [internal]' : '';
+
+      md += `### ${date} - ${actor}${internal}\n\n`;
+      if (activity.attributes.message) {
+        md += `${activity.attributes.message}\n\n`;
+      } else {
+        md += `*${activity.type}*\n\n`;
+      }
+    }
+  }
+
+  return md;
 }

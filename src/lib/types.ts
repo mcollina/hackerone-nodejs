@@ -66,6 +66,15 @@ export interface Attachment {
   };
 }
 
+interface RelationshipResource {
+  id: string;
+  type: string;
+  attributes?: {
+    handle?: string;
+    username?: string;
+  };
+}
+
 // Activity
 export interface Activity {
   id: string;
@@ -77,7 +86,7 @@ export interface Activity {
     internal: boolean;
   };
   relationships?: {
-    actor?: { data: { id: string; type: string } };
+    actor?: { data: RelationshipResource };
     attachments?: { data: Attachment[] };
   };
 }
@@ -99,8 +108,8 @@ export interface Report {
     severity_rating: string | null;
   };
   relationships: {
-    program: { data: { id: string; type: string } };
-    reporter?: { data: { id: string; type: string } };
+    program: { data: RelationshipResource };
+    reporter?: { data: RelationshipResource };
     activities?: { data: Activity[] };
     attachments?: { data: Attachment[] };
   };

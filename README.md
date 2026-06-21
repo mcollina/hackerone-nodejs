@@ -19,13 +19,13 @@ A TypeScript client library and CLI for the [HackerOne API](https://api.hackeron
 ## Installation
 
 ```sh
-npm install hackerone
+npm install @matteocollina/hackerone
 ```
 
 For CLI usage, install globally or run via your package manager:
 
 ```sh
-npm install -g hackerone
+npm install -g @matteocollina/hackerone
 hackerone --help
 ```
 

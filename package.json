@@ -1,5 +1,5 @@
 {
-  "name": "@matteocollina/hackerone",
+  "name": "@matteo.collina/hackerone",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/lib/index.js",

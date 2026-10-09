@@ -49,6 +49,8 @@ The CLI reads credentials from environment variables:
 ```sh
 export HACKERONE_API_IDENTIFIER="your_api_identifier"
 export HACKERONE_API_TOKEN="your_api_token"
+# Optional: override the API base URL (useful for local development/testing)
+export HACKERONE_BASE_URL="https://api.hackerone.com/v1"
 ```
 
 For local development, copy the example environment file and fill in your credentials:
@@ -73,6 +75,7 @@ hackerone <command> [options]
 | `programs show <id>` | Show program details |
 | `reports list --program <handle>` | List reports for a program |
 | `reports show <id>` | Show report details |
+| `reports comment <id>` | Post a comment on a report |
 | `download <id>` | Download one report and its attachments |
 | `download --program <handle>` | Download all reports from a program |
 
@@ -87,6 +90,9 @@ hackerone <command> [options]
 | `--state <state>` | Filter by state; can be repeated |
 | `--severity <level>` | Filter by severity; can be repeated |
 | `--output-dir <path>` | Download directory, default `./reports` |
+| `--message <text>` | Comment message (required for `reports comment`) |
+| `--internal` | Post an internal (team-only) comment |
+| `--attachment-id <id>` | Attach a file to a comment (can be repeated) |
 
 Valid report states are `new`, `triaged`, `needs-more-info`, `resolved`, `not-applicable`, `informative`, `duplicate`, and `spam`.
 
@@ -104,6 +110,15 @@ hackerone reports list --program myprogram --state triaged
 
 # Show a report, including comments from the incremental activity API
 hackerone reports show 12345 --with-comments --program myprogram
+
+# Post a public comment on a report
+hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
+
+# Post an internal (team-only) comment
+hackerone reports comment 12345 --message "Internal triage note" --internal
+
+# Post a comment with an attached file
+hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
 
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads
@@ -169,6 +184,7 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | `listPrograms`, `getProgram`, `listStructuredScopes` | Program APIs |
 | `listReports`, `getReport`, `listAllReports` | Report APIs and pagination helper |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
+| `createComment` | Post a public or internal comment on a report |
 | `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |
 | `ReportState` | Report state constants |
 | `HackerOneConfig`, `Program`, `Report`, `Activity`, `Attachment`, `StructuredScope` | TypeScript types |

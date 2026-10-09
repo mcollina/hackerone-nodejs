@@ -13,6 +13,7 @@ export type {
   Attachment,
   StructuredScope,
   ReportStateValue,
+  CreateCommentOptions,
 } from './types.ts';
 
 export { ReportState } from './types.ts';
@@ -38,6 +39,7 @@ export {
   listActivities,
   filterComments,
   listAllActivities,
+  createComment,
   type ActivityFilterOptions,
 } from './activities.ts';
 

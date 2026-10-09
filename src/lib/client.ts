@@ -25,16 +25,26 @@ export class HackerOneClient {
   async request<T>(
     method: string,
     path: string,
-    params?: Record<string, string | string[]>
+    params?: Record<string, string | string[]>,
+    body?: unknown
   ): Promise<T> {
     const url = this.buildUrl(path, params);
 
-    const { statusCode, body, headers } = await request(url, {
+    const requestHeaders: Record<string, string> = {
+      Authorization: this.authHeader,
+      Accept: 'application/json',
+    };
+
+    let requestBody: string | undefined;
+    if (body !== undefined) {
+      requestHeaders['Content-Type'] = 'application/json';
+      requestBody = JSON.stringify(body);
+    }
+
+    const { statusCode, body: responseBody, headers } = await request(url, {
       method: method as Dispatcher.HttpMethod,
-      headers: {
-        Authorization: this.authHeader,
-        Accept: 'application/json',
-      },
+      headers: requestHeaders,
+      body: requestBody,
       dispatcher: this.dispatcher,
     });
 
@@ -50,7 +60,7 @@ export class HackerOneClient {
       throw apiError(`Request failed: ${statusCode}`, statusCode);
     }
 
-    return (await body.json()) as T;
+    return (await responseBody.json()) as T;
   }
 
   private buildUrl(

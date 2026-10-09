@@ -2,7 +2,11 @@ import { parseArgs } from 'node:util';
 import { HackerOneClient } from '../lib/client.ts';
 import { ReportState, type ReportStateValue } from '../lib/types.ts';
 import { runProgramsList, runProgramsShow } from './commands/programs.ts';
-import { runReportsList, runReportsShow } from './commands/reports.ts';
+import {
+  runReportsList,
+  runReportsShow,
+  runReportsComment,
+} from './commands/reports.ts';
 import { runDownloadReport, runDownloadBulk } from './commands/download.ts';
 import { printError } from './output.ts';
 
@@ -17,6 +21,7 @@ Commands:
   programs show <id>        Show program details
   reports list              List reports
   reports show <id>         Show report details
+  reports comment <id>      Post a comment on a report
   download <id>             Download a report with attachments
   download --program <h>    Download all reports from a program
 
@@ -36,6 +41,9 @@ Reports Options:
   --page <n>                Page number (default: 1)
   --limit <n>               Results per page (default: 25, max: 100)
   --with-comments           Include comments (requires --program)
+  --message <text>          Comment message (required for reports comment)
+  --internal                Post an internal (team-only) comment
+  --attachment-id <id>      Attach a file to a comment (can be repeated)
 
 Download Options:
   --output-dir <path>       Output directory (default: ./reports)
@@ -54,6 +62,9 @@ Examples:
   hackerone reports list --program myprogram --state triaged
   hackerone reports list --state new --state triaged
   hackerone reports show 12345 --with-comments --program myprogram
+  hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
+  hackerone reports comment 12345 --message "Internal triage note" --internal
+  hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
   hackerone download 12345 --output-dir ./downloads
   hackerone download --program myprogram --state triaged
 `.trim();
@@ -69,7 +80,11 @@ function getClient(): HackerOneClient {
     process.exit(1);
   }
 
-  return new HackerOneClient({ apiIdentifier, apiToken });
+  return new HackerOneClient({
+    apiIdentifier,
+    apiToken,
+    baseUrl: process.env.HACKERONE_BASE_URL,
+  });
 }
 
 function parseStates(values: string[]): ReportStateValue[] {
@@ -98,6 +113,9 @@ interface ParsedOptions {
   scopes: boolean;
   withComments: boolean;
   outputDir: string | undefined;
+  message: string | undefined;
+  internal: boolean;
+  attachmentIds: string[];
 }
 
 function parseOptions(args: string[]): { options: ParsedOptions; positionals: string[] } {
@@ -114,6 +132,9 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       scopes: { type: 'boolean', default: false },
       'with-comments': { type: 'boolean', default: false },
       'output-dir': { type: 'string' },
+      message: { type: 'string' },
+      internal: { type: 'boolean', default: false },
+      'attachment-id': { type: 'string', multiple: true, default: [] },
     },
     allowPositionals: true,
     strict: false,
@@ -131,6 +152,9 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       scopes: values.scopes as boolean,
       withComments: values['with-comments'] as boolean,
       outputDir: values['output-dir'] as string | undefined,
+      message: values.message as string | undefined,
+      internal: values.internal as boolean,
+      attachmentIds: values['attachment-id'] as string[],
     },
     positionals,
   };
@@ -203,6 +227,29 @@ async function main(): Promise<void> {
         await runReportsShow(client, reportId, {
           withComments: options.withComments,
           program: options.program[0],
+          json: options.json,
+        });
+      } else if (subcommand === 'comment') {
+        const reportId = positionals[0];
+        if (!reportId) {
+          printError('Report ID required');
+          process.exit(1);
+        }
+        if (!options.message) {
+          printError('--message <text> is required to post a comment');
+          process.exit(1);
+        }
+        await runReportsComment(client, reportId, {
+          message: options.message,
+          internal: options.internal,
+          attachmentIds: options.attachmentIds.map((id) => {
+            const n = Number(id);
+            if (!Number.isInteger(n) || n <= 0) {
+              printError(`Invalid attachment ID: ${id}`);
+              process.exit(1);
+            }
+            return n;
+          }),
           json: options.json,
         });
       } else {

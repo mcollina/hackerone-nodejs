@@ -130,6 +130,7 @@ export async function runReportsShow(
 export interface ReportsCommentOptions {
   message: string;
   internal?: boolean;
+  attachmentIds?: number[];
   json?: boolean;
 }
 
@@ -142,6 +143,7 @@ export async function runReportsComment(
     const comment = await createComment(client, reportId, {
       message: options.message,
       internal: options.internal ?? false,
+      attachmentIds: options.attachmentIds,
     });
 
     if (options.json) {

@@ -43,6 +43,7 @@ Reports Options:
   --with-comments           Include comments (requires --program)
   --message <text>          Comment message (required for reports comment)
   --internal                Post an internal (team-only) comment
+  --attachment-id <id>      Attach a file to a comment (can be repeated)
 
 Download Options:
   --output-dir <path>       Output directory (default: ./reports)
@@ -63,6 +64,7 @@ Examples:
   hackerone reports show 12345 --with-comments --program myprogram
   hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
   hackerone reports comment 12345 --message "Internal triage note" --internal
+  hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
   hackerone download 12345 --output-dir ./downloads
   hackerone download --program myprogram --state triaged
 `.trim();
@@ -109,6 +111,7 @@ interface ParsedOptions {
   outputDir: string | undefined;
   message: string | undefined;
   internal: boolean;
+  attachmentIds: string[];
 }
 
 function parseOptions(args: string[]): { options: ParsedOptions; positionals: string[] } {
@@ -127,6 +130,7 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       'output-dir': { type: 'string' },
       message: { type: 'string' },
       internal: { type: 'boolean', default: false },
+      'attachment-id': { type: 'string', multiple: true, default: [] },
     },
     allowPositionals: true,
     strict: false,
@@ -146,6 +150,7 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       outputDir: values['output-dir'] as string | undefined,
       message: values.message as string | undefined,
       internal: values.internal as boolean,
+      attachmentIds: values['attachment-id'] as string[],
     },
     positionals,
   };
@@ -233,6 +238,14 @@ async function main(): Promise<void> {
         await runReportsComment(client, reportId, {
           message: options.message,
           internal: options.internal,
+          attachmentIds: options.attachmentIds.map((id) => {
+            const n = Number(id);
+            if (!Number.isInteger(n) || n <= 0) {
+              printError(`Invalid attachment ID: ${id}`);
+              process.exit(1);
+            }
+            return n;
+          }),
           json: options.json,
         });
       } else {

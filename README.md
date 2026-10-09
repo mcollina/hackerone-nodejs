@@ -90,6 +90,7 @@ hackerone <command> [options]
 | `--output-dir <path>` | Download directory, default `./reports` |
 | `--message <text>` | Comment message (required for `reports comment`) |
 | `--internal` | Post an internal (team-only) comment |
+| `--attachment-id <id>` | Attach a file to a comment (can be repeated) |
 
 Valid report states are `new`, `triaged`, `needs-more-info`, `resolved`, `not-applicable`, `informative`, `duplicate`, and `spam`.
 
@@ -113,6 +114,9 @@ hackerone reports comment 12345 --message "A fix has been deployed. Can you rete
 
 # Post an internal (team-only) comment
 hackerone reports comment 12345 --message "Internal triage note" --internal
+
+# Post a comment with an attached file
+hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
 
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads

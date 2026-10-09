@@ -49,6 +49,8 @@ The CLI reads credentials from environment variables:
 ```sh
 export HACKERONE_API_IDENTIFIER="your_api_identifier"
 export HACKERONE_API_TOKEN="your_api_token"
+# Optional: override the API base URL (useful for local development/testing)
+export HACKERONE_BASE_URL="https://api.hackerone.com/v1"
 ```
 
 For local development, copy the example environment file and fill in your credentials:

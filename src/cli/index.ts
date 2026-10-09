@@ -80,7 +80,11 @@ function getClient(): HackerOneClient {
     process.exit(1);
   }
 
-  return new HackerOneClient({ apiIdentifier, apiToken });
+  return new HackerOneClient({
+    apiIdentifier,
+    apiToken,
+    baseUrl: process.env.HACKERONE_BASE_URL,
+  });
 }
 
 function parseStates(values: string[]): ReportStateValue[] {

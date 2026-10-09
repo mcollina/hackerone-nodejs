@@ -73,6 +73,7 @@ hackerone <command> [options]
 | `programs show <id>` | Show program details |
 | `reports list --program <handle>` | List reports for a program |
 | `reports show <id>` | Show report details |
+| `reports comment <id>` | Post a comment on a report |
 | `download <id>` | Download one report and its attachments |
 | `download --program <handle>` | Download all reports from a program |
 
@@ -87,6 +88,8 @@ hackerone <command> [options]
 | `--state <state>` | Filter by state; can be repeated |
 | `--severity <level>` | Filter by severity; can be repeated |
 | `--output-dir <path>` | Download directory, default `./reports` |
+| `--message <text>` | Comment message (required for `reports comment`) |
+| `--internal` | Post an internal (team-only) comment |
 
 Valid report states are `new`, `triaged`, `needs-more-info`, `resolved`, `not-applicable`, `informative`, `duplicate`, and `spam`.
 
@@ -104,6 +107,12 @@ hackerone reports list --program myprogram --state triaged
 
 # Show a report, including comments from the incremental activity API
 hackerone reports show 12345 --with-comments --program myprogram
+
+# Post a public comment on a report
+hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
+
+# Post an internal (team-only) comment
+hackerone reports comment 12345 --message "Internal triage note" --internal
 
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads
@@ -169,6 +178,7 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | `listPrograms`, `getProgram`, `listStructuredScopes` | Program APIs |
 | `listReports`, `getReport`, `listAllReports` | Report APIs and pagination helper |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
+| `createComment` | Post a public or internal comment on a report |
 | `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |
 | `ReportState` | Report state constants |
 | `HackerOneConfig`, `Program`, `Report`, `Activity`, `Attachment`, `StructuredScope` | TypeScript types |

@@ -11,6 +11,7 @@ import {
   listActivities,
   filterComments,
   listAllActivities,
+  createComment,
 } from '../../src/lib/activities.ts';
 import activitiesFixture from '../fixtures/activities.json' with { type: 'json' };
 
@@ -172,6 +173,123 @@ describe('Activities API', () => {
       const comments = filterComments(activities as any);
 
       assert.strictEqual(comments.length, 0);
+    });
+  });
+
+  describe('createComment', () => {
+    it('should post a public comment', async () => {
+      const mockPool = mockAgent.get('https://api.hackerone.com');
+      const payload = {
+        data: {
+          type: 'activity-comment',
+          attributes: { message: 'Thanks!', internal: false },
+        },
+      };
+      mockPool
+        .intercept({
+          path: '/v1/reports/12345/activities',
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+        .reply(201, {
+          data: {
+            id: 'act-new',
+            type: 'activity-comment',
+            attributes: {
+              message: 'Thanks!',
+              created_at: '2024-01-18T09:00:00.000Z',
+              updated_at: '2024-01-18T09:00:00.000Z',
+              internal: false,
+            },
+          },
+        });
+
+      const result = await createComment(client, 12345, {
+        message: 'Thanks!',
+      });
+
+      assert.strictEqual(result.type, 'activity-comment');
+      assert.strictEqual(result.attributes.message, 'Thanks!');
+      assert.strictEqual(result.attributes.internal, false);
+    });
+
+    it('should post an internal comment', async () => {
+      const mockPool = mockAgent.get('https://api.hackerone.com');
+      const payload = {
+        data: {
+          type: 'activity-comment',
+          attributes: { message: 'Internal note', internal: true },
+        },
+      };
+      mockPool
+        .intercept({
+          path: '/v1/reports/12345/activities',
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+        .reply(201, {
+          data: {
+            id: 'act-new',
+            type: 'activity-comment',
+            attributes: {
+              message: 'Internal note',
+              created_at: '2024-01-18T09:00:00.000Z',
+              updated_at: '2024-01-18T09:00:00.000Z',
+              internal: true,
+            },
+          },
+        });
+
+      const result = await createComment(client, 12345, {
+        message: 'Internal note',
+        internal: true,
+      });
+
+      assert.strictEqual(result.attributes.internal, true);
+    });
+
+    it('should include attachment IDs when provided', async () => {
+      const mockPool = mockAgent.get('https://api.hackerone.com');
+      const payload = {
+        data: {
+          type: 'activity-comment',
+          attributes: { message: 'POC attached', internal: false, attachment_ids: [42] },
+        },
+      };
+      mockPool
+        .intercept({
+          path: '/v1/reports/12345/activities',
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+        .reply(201, {
+          data: {
+            id: 'act-new',
+            type: 'activity-comment',
+            attributes: {
+              message: 'POC attached',
+              created_at: '2024-01-18T09:00:00.000Z',
+              updated_at: '2024-01-18T09:00:00.000Z',
+              internal: false,
+            },
+          },
+        });
+
+      const result = await createComment(client, 12345, {
+        message: 'POC attached',
+        attachmentIds: [42],
+      });
+
+      assert.strictEqual(result.attributes.message, 'POC attached');
     });
   });
 

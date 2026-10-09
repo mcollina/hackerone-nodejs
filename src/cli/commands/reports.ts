@@ -1,6 +1,6 @@
 import type { HackerOneClient } from '../../lib/client.ts';
 import { listReports, getReport } from '../../lib/reports.ts';
-import { listActivities, filterComments } from '../../lib/activities.ts';
+import { listActivities, filterComments, createComment } from '../../lib/activities.ts';
 import type { ReportStateValue } from '../../lib/types.ts';
 import {
   formatReport,
@@ -121,6 +121,36 @@ export async function runReportsShow(
         console.log('\nNo comments found.');
       }
     }
+  } catch (err) {
+    printError(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+}
+
+export interface ReportsCommentOptions {
+  message: string;
+  internal?: boolean;
+  json?: boolean;
+}
+
+export async function runReportsComment(
+  client: HackerOneClient,
+  reportId: string,
+  options: ReportsCommentOptions
+): Promise<void> {
+  try {
+    const comment = await createComment(client, reportId, {
+      message: options.message,
+      internal: options.internal ?? false,
+    });
+
+    if (options.json) {
+      printJson(comment);
+      return;
+    }
+
+    console.log(`Comment posted to report ${reportId}:`);
+    console.log(formatActivity(comment));
   } catch (err) {
     printError(err instanceof Error ? err.message : String(err));
     process.exit(1);

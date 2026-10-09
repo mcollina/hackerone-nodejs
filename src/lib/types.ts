@@ -75,6 +75,17 @@ interface RelationshipResource {
   };
 }
 
+// Comment creation
+// See https://api.hackerone.com/customer-resources/#reports-create-comment
+export interface CreateCommentOptions {
+  /** The message to post. */
+  message: string;
+  /** Whether the comment should be internal (team-only) or public. Defaults to false. */
+  internal?: boolean;
+  /** Optional attachment IDs to include with the comment. */
+  attachmentIds?: number[];
+}
+
 // Activity
 export interface Activity {
   id: string;

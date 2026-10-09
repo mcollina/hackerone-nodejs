@@ -1,5 +1,9 @@
 import type { HackerOneClient } from './client.ts';
-import type { Activity, PaginatedResponse } from './types.ts';
+import type {
+  Activity,
+  PaginatedResponse,
+  CreateCommentOptions,
+} from './types.ts';
 
 export interface ActivityFilterOptions {
   reportId?: number | string;
@@ -34,6 +38,40 @@ export function filterComments(activities: Activity[]): Activity[] {
   return activities.filter(
     (a) => a.type === 'activity-comment' && a.attributes.message !== null
   );
+}
+
+/**
+ * Post a comment on a report.
+ *
+ * Public comments notify everyone subscribed to the report. Internal comments
+ * are only visible to the program's managers and require no extra permission.
+ * See https://api.hackerone.com/customer-resources/#reports-create-comment
+ */
+export async function createComment(
+  client: HackerOneClient,
+  reportId: number | string,
+  options: CreateCommentOptions
+): Promise<Activity> {
+  const payload = {
+    data: {
+      type: 'activity-comment',
+      attributes: {
+        message: options.message,
+        internal: options.internal ?? false,
+        ...(options.attachmentIds && options.attachmentIds.length > 0
+          ? { attachment_ids: options.attachmentIds }
+          : {}),
+      },
+    },
+  };
+
+  const response = await client.request<{ data: Activity }>(
+    'POST',
+    `/reports/${reportId}/activities`,
+    undefined,
+    payload
+  );
+  return response.data;
 }
 
 export async function* listAllActivities(

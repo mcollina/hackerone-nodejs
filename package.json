@@ -1,6 +1,6 @@
 {
   "name": "@matteo.collina/hackerone",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",
@@ -13,7 +13,11 @@
       "import": "./dist/lib/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test 'test/**/*.test.ts'",
     "test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",

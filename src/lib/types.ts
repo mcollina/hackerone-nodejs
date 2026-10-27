@@ -86,6 +86,13 @@ export interface CreateCommentOptions {
   attachmentIds?: number[];
 }
 
+// State change
+// See https://api.hackerone.com/customer-resources/#reports-change-state
+export interface ChangeStateOptions {
+  /** Message posted with the state change. It is visible to the reporter. */
+  message?: string;
+}
+
 // Activity
 export interface Activity {
   id: string;

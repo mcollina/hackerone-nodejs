@@ -7,7 +7,12 @@ import {
   type Dispatcher,
 } from 'undici';
 import { HackerOneClient } from '../../src/lib/client.ts';
-import { listReports, getReport, listAllReports } from '../../src/lib/reports.ts';
+import {
+  listReports,
+  getReport,
+  listAllReports,
+  changeReportState,
+} from '../../src/lib/reports.ts';
 import { ReportState } from '../../src/lib/types.ts';
 import reportsFixture from '../fixtures/reports.json' with { type: 'json' };
 import reportFixture from '../fixtures/report.json' with { type: 'json' };
@@ -310,6 +315,48 @@ describe('Reports API', () => {
       }
 
       assert.strictEqual(reports.length, 1);
+    });
+  });
+
+  describe('changeReportState', () => {
+    it('should POST a state change with a message', async () => {
+      let sent: unknown;
+      mockAgent
+        .get('https://api.hackerone.com')
+        .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
+        .reply(201, (opts) => {
+          sent = JSON.parse(String(opts.body));
+          return reportFixture;
+        });
+
+      const report = await changeReportState(client, 12345, ReportState.Triaged, {
+        message: 'Thanks, triaged',
+      });
+
+      assert.strictEqual(report.id, reportFixture.data.id);
+      assert.deepStrictEqual(sent, {
+        data: {
+          type: 'state-change',
+          attributes: { state: 'triaged', message: 'Thanks, triaged' },
+        },
+      });
+    });
+
+    it('should omit the message when not provided', async () => {
+      let sent: unknown;
+      mockAgent
+        .get('https://api.hackerone.com')
+        .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
+        .reply(201, (opts) => {
+          sent = JSON.parse(String(opts.body));
+          return reportFixture;
+        });
+
+      await changeReportState(client, '12345', ReportState.Resolved);
+
+      assert.deepStrictEqual(sent, {
+        data: { type: 'state-change', attributes: { state: 'resolved' } },
+      });
     });
   });
 });

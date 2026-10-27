@@ -1,5 +1,11 @@
 import type { HackerOneClient } from './client.ts';
-import type { Report, PaginatedResponse, ReportFilterOptions } from './types.ts';
+import type {
+  Report,
+  PaginatedResponse,
+  ReportFilterOptions,
+  ReportStateValue,
+  ChangeStateOptions,
+} from './types.ts';
 
 export async function listReports(
   client: HackerOneClient,
@@ -39,6 +45,36 @@ export async function getReport(
   const response = await client.request<{ data: Report }>(
     'GET',
     `/reports/${id}`
+  );
+  return response.data;
+}
+
+/**
+ * Change a report's state.
+ *
+ * HackerOne requires a message for most transitions, and the message is
+ * visible to the reporter. Use an internal comment for team-only notes.
+ * See https://api.hackerone.com/customer-resources/#reports-change-state
+ */
+export async function changeReportState(
+  client: HackerOneClient,
+  id: number | string,
+  state: ReportStateValue,
+  options?: ChangeStateOptions
+): Promise<Report> {
+  const response = await client.request<{ data: Report }>(
+    'POST',
+    `/reports/${id}/state_changes`,
+    undefined,
+    {
+      data: {
+        type: 'state-change',
+        attributes: {
+          state,
+          ...(options?.message ? { message: options.message } : {}),
+        },
+      },
+    }
   );
   return response.data;
 }

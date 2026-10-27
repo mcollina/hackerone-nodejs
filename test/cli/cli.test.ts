@@ -10,6 +10,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
 const execFileAsync = promisify(execFile);
@@ -30,6 +32,7 @@ describe('CLI', () => {
   let server: Server;
   let baseUrl: string;
   let requestBodies: string[] = [];
+  let tmp: string;
 
   before(async () => {
     server = createServer((req, res) => {
@@ -47,9 +50,11 @@ describe('CLI', () => {
     );
     const address = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${address.port}/v1`;
+    tmp = await mkdtemp(join(tmpdir(), 'hackerone-cli-'));
   });
 
   after(async () => {
+    await rm(tmp, { recursive: true, force: true });
     await new Promise<void>((resolve, reject) =>
       server.close((err) => (err ? reject(err) : resolve()))
     );
@@ -91,6 +96,29 @@ describe('CLI', () => {
       return;
     }
 
+    const stateChange = /^\/v1\/reports\/([^/]+)\/state_changes$/.exec(path);
+    if (req.method === 'POST' && stateChange) {
+      if (stateChange[1] === 'locked') {
+        res.writeHead(422, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({ errors: [{ title: 'Invalid state transition' }] })
+        );
+        return;
+      }
+      const parsed = body ? JSON.parse(body) : {};
+      res.writeHead(201, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          data: {
+            id: stateChange[1],
+            type: 'report',
+            attributes: { state: parsed.data?.attributes?.state },
+          },
+        })
+      );
+      return;
+    }
+
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(
       JSON.stringify({ errors: [{ detail: `Not found: ${req.method} ${path}` }] })
@@ -99,10 +127,11 @@ describe('CLI', () => {
 
   async function runCli(
     args: string[],
-    env: Record<string, string> = {}
+    env: Record<string, string> = {},
+    stdin?: string
   ): Promise<{ stdout: string; stderr: string; code: number }> {
     try {
-      const { stdout, stderr } = await execFileAsync('node', [cliPath, ...args], {
+      const pending = execFileAsync('node', [cliPath, ...args], {
         env: {
           ...process.env,
           HACKERONE_API_IDENTIFIER: 'test',
@@ -111,6 +140,8 @@ describe('CLI', () => {
           ...env,
         },
       });
+      pending.child.stdin?.end(stdin ?? '');
+      const { stdout, stderr } = await pending;
       return { stdout: String(stdout), stderr: String(stderr), code: 0 };
     } catch (err) {
       const e = err as { stdout?: string; stderr?: string; code?: number };
@@ -202,7 +233,10 @@ describe('CLI', () => {
       ]);
 
       assert.strictEqual(code, 1);
-      assert.match(stderr, /--message <text> is required to post a comment/);
+      assert.match(
+        stderr,
+        /--message <text> or --message-file <path> is required to post a comment/
+      );
       assert.strictEqual(requestBodies.length, 0);
     });
 
@@ -233,6 +267,157 @@ describe('CLI', () => {
       assert.strictEqual(code, 1);
       assert.match(stderr, /Invalid attachment ID: abc/);
       assert.strictEqual(requestBodies.length, 0);
+    });
+    it('reads the message from --message-file', async () => {
+      const file = join(tmp, 'note.md');
+      await writeFile(file, 'Line one\n\nLine two\n');
+
+      const { code, stderr } = await runCli([
+        'reports',
+        'comment',
+        '12345',
+        '--internal',
+        '--message-file',
+        file,
+      ]);
+
+      assert.strictEqual(code, 0, stderr);
+      const sent = JSON.parse(requestBodies[0]);
+      assert.strictEqual(sent.data.attributes.message, 'Line one\n\nLine two');
+      assert.strictEqual(sent.data.attributes.internal, true);
+    });
+
+    it('reads the message from stdin with --message-file -', async () => {
+      const { code, stderr } = await runCli(
+        ['reports', 'comment', '12345', '--message-file', '-'],
+        {},
+        'From stdin\n'
+      );
+
+      assert.strictEqual(code, 0, stderr);
+      const sent = JSON.parse(requestBodies[0]);
+      assert.strictEqual(sent.data.attributes.message, 'From stdin');
+    });
+
+    it('errors when both --message and --message-file are given', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'comment',
+        '12345',
+        '--message',
+        'a',
+        '--message-file',
+        join(tmp, 'unused.md'),
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /either --message or --message-file/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+  });
+
+  describe('reports state', () => {
+    it('changes the state with a message', async () => {
+      const { stdout, stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'triaged',
+        '--message',
+        'Thanks, we reproduced it.',
+      ]);
+
+      assert.strictEqual(code, 0, stderr);
+      assert.match(stdout, /Report 12345 is now triaged/);
+      assert.strictEqual(requestBodies.length, 1);
+      assert.deepStrictEqual(JSON.parse(requestBodies[0]), {
+        data: {
+          type: 'state-change',
+          attributes: { state: 'triaged', message: 'Thanks, we reproduced it.' },
+        },
+      });
+    });
+
+    it('reads the message from --message-file', async () => {
+      const file = join(tmp, 'reply.md');
+      await writeFile(file, 'Closing as informative.\n');
+
+      const { code, stderr } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'informative',
+        '--message-file',
+        file,
+      ]);
+
+      assert.strictEqual(code, 0, stderr);
+      const sent = JSON.parse(requestBodies[0]);
+      assert.strictEqual(sent.data.attributes.state, 'informative');
+      assert.strictEqual(sent.data.attributes.message, 'Closing as informative.');
+    });
+
+    it('omits the message when none is given', async () => {
+      const { code, stderr } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'resolved',
+      ]);
+
+      assert.strictEqual(code, 0, stderr);
+      assert.deepStrictEqual(JSON.parse(requestBodies[0]), {
+        data: { type: 'state-change', attributes: { state: 'resolved' } },
+      });
+    });
+
+    it('outputs JSON with --json', async () => {
+      const { stdout, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'triaged',
+        '--json',
+      ]);
+
+      assert.strictEqual(code, 0);
+      const report = JSON.parse(stdout);
+      assert.strictEqual(report.id, '12345');
+      assert.strictEqual(report.attributes.state, 'triaged');
+    });
+
+    it('errors on an invalid state', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'bogus',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Invalid state: bogus/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('errors without a state', async () => {
+      const { stderr, code } = await runCli(['reports', 'state', '12345']);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Report ID and state required/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('shows the API error body when the change is rejected', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        'locked',
+        'spam',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /422/);
+      assert.match(stderr, /Invalid state transition/);
     });
   });
 });

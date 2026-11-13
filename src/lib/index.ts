@@ -14,6 +14,7 @@ export type {
   StructuredScope,
   ReportStateValue,
   CreateCommentOptions,
+  ChangeStateOptions,
 } from './types.ts';
 
 export { ReportState } from './types.ts';
@@ -32,7 +33,12 @@ export {
 export { listPrograms, getProgram, listStructuredScopes } from './programs.ts';
 
 // Reports API
-export { listReports, getReport, listAllReports } from './reports.ts';
+export {
+  listReports,
+  getReport,
+  listAllReports,
+  changeReportState,
+} from './reports.ts';
 
 // Activities API
 export {

@@ -1,5 +1,5 @@
 import type { HackerOneClient } from '../../lib/client.ts';
-import { listReports, getReport } from '../../lib/reports.ts';
+import { listReports, getReport, changeReportState } from '../../lib/reports.ts';
 import { listActivities, filterComments, createComment } from '../../lib/activities.ts';
 import type { ReportStateValue } from '../../lib/types.ts';
 import {
@@ -153,6 +153,34 @@ export async function runReportsComment(
 
     console.log(`Comment posted to report ${reportId}:`);
     console.log(formatActivity(comment));
+  } catch (err) {
+    printError(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+}
+
+export interface ReportsStateOptions {
+  message?: string;
+  json?: boolean;
+}
+
+export async function runReportsState(
+  client: HackerOneClient,
+  reportId: string,
+  state: ReportStateValue,
+  options: ReportsStateOptions
+): Promise<void> {
+  try {
+    const report = await changeReportState(client, reportId, state, {
+      message: options.message,
+    });
+
+    if (options.json) {
+      printJson(report);
+      return;
+    }
+
+    console.log(`Report ${reportId} is now ${report.attributes.state}`);
   } catch (err) {
     printError(err instanceof Error ? err.message : String(err));
     process.exit(1);

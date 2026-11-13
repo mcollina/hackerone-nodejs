@@ -76,6 +76,7 @@ hackerone <command> [options]
 | `reports list --program <handle>` | List reports for a program |
 | `reports show <id>` | Show report details |
 | `reports comment <id>` | Post a comment on a report |
+| `reports state <id> <state>` | Change a report's state; the message is visible to the reporter |
 | `download <id>` | Download one report and its attachments |
 | `download --program <handle>` | Download all reports from a program |
 
@@ -90,7 +91,8 @@ hackerone <command> [options]
 | `--state <state>` | Filter by state; can be repeated |
 | `--severity <level>` | Filter by severity; can be repeated |
 | `--output-dir <path>` | Download directory, default `./reports` |
-| `--message <text>` | Comment message (required for `reports comment`) |
+| `--message <text>` | Message for `reports comment` (required) and `reports state` |
+| `--message-file <path>` | Read the message from a file, or `-` for stdin |
 | `--internal` | Post an internal (team-only) comment |
 | `--attachment-id <id>` | Attach a file to a comment (can be repeated) |
 
@@ -119,6 +121,12 @@ hackerone reports comment 12345 --message "Internal triage note" --internal
 
 # Post a comment with an attached file
 hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
+
+# Post a longer internal note from a file
+hackerone reports comment 12345 --internal --message-file notes.md
+
+# Triage a report, with a reply to the reporter read from stdin
+hackerone reports state 12345 triaged --message-file - < reply.md
 
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads
@@ -183,6 +191,7 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | `HackerOneClient` | Authenticated API client |
 | `listPrograms`, `getProgram`, `listStructuredScopes` | Program APIs |
 | `listReports`, `getReport`, `listAllReports` | Report APIs and pagination helper |
+| `changeReportState` | Change a report's state, with an optional message to the reporter |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
 | `createComment` | Post a public or internal comment on a report |
 | `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |

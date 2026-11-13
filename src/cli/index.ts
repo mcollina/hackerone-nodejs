@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { HackerOneClient } from '../lib/client.ts';
 import { ReportState, type ReportStateValue } from '../lib/types.ts';
@@ -6,6 +7,7 @@ import {
   runReportsList,
   runReportsShow,
   runReportsComment,
+  runReportsState,
 } from './commands/reports.ts';
 import { runDownloadReport, runDownloadBulk } from './commands/download.ts';
 import { printError } from './output.ts';
@@ -22,6 +24,8 @@ Commands:
   reports list              List reports
   reports show <id>         Show report details
   reports comment <id>      Post a comment on a report
+  reports state <id> <state>
+                            Change a report's state (message visible to reporter)
   download <id>             Download a report with attachments
   download --program <h>    Download all reports from a program
 
@@ -41,7 +45,8 @@ Reports Options:
   --page <n>                Page number (default: 1)
   --limit <n>               Results per page (default: 25, max: 100)
   --with-comments           Include comments (requires --program)
-  --message <text>          Comment message (required for reports comment)
+  --message <text>          Message for reports comment and reports state
+  --message-file <path>     Read the message from a file ("-" for stdin)
   --internal                Post an internal (team-only) comment
   --attachment-id <id>      Attach a file to a comment (can be repeated)
 
@@ -65,6 +70,8 @@ Examples:
   hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
   hackerone reports comment 12345 --message "Internal triage note" --internal
   hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
+  hackerone reports comment 12345 --internal --message-file notes.md
+  hackerone reports state 12345 triaged --message-file reply.md
   hackerone download 12345 --output-dir ./downloads
   hackerone download --program myprogram --state triaged
 `.trim();
@@ -85,6 +92,18 @@ function getClient(): HackerOneClient {
     apiToken,
     baseUrl: process.env.HACKERONE_BASE_URL,
   });
+}
+
+function readMessage(options: ParsedOptions): string | undefined {
+  if (options.message !== undefined && options.messageFile !== undefined) {
+    printError('Use either --message or --message-file, not both');
+    process.exit(1);
+  }
+  if (options.messageFile !== undefined) {
+    const source = options.messageFile === '-' ? 0 : options.messageFile;
+    return readFileSync(source, 'utf8').trim();
+  }
+  return options.message;
 }
 
 function parseStates(values: string[]): ReportStateValue[] {
@@ -114,6 +133,7 @@ interface ParsedOptions {
   withComments: boolean;
   outputDir: string | undefined;
   message: string | undefined;
+  messageFile: string | undefined;
   internal: boolean;
   attachmentIds: string[];
 }
@@ -133,6 +153,7 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       'with-comments': { type: 'boolean', default: false },
       'output-dir': { type: 'string' },
       message: { type: 'string' },
+      'message-file': { type: 'string' },
       internal: { type: 'boolean', default: false },
       'attachment-id': { type: 'string', multiple: true, default: [] },
     },
@@ -153,6 +174,7 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       withComments: values['with-comments'] as boolean,
       outputDir: values['output-dir'] as string | undefined,
       message: values.message as string | undefined,
+      messageFile: values['message-file'] as string | undefined,
       internal: values.internal as boolean,
       attachmentIds: values['attachment-id'] as string[],
     },
@@ -235,12 +257,15 @@ async function main(): Promise<void> {
           printError('Report ID required');
           process.exit(1);
         }
-        if (!options.message) {
-          printError('--message <text> is required to post a comment');
+        const message = readMessage(options);
+        if (!message) {
+          printError(
+            '--message <text> or --message-file <path> is required to post a comment'
+          );
           process.exit(1);
         }
         await runReportsComment(client, reportId, {
-          message: options.message,
+          message,
           internal: options.internal,
           attachmentIds: options.attachmentIds.map((id) => {
             const n = Number(id);
@@ -250,6 +275,17 @@ async function main(): Promise<void> {
             }
             return n;
           }),
+          json: options.json,
+        });
+      } else if (subcommand === 'state') {
+        const [reportId, stateArg] = positionals;
+        if (!reportId || !stateArg) {
+          printError('Report ID and state required');
+          process.exit(1);
+        }
+        const [state] = parseStates([stateArg]);
+        await runReportsState(client, reportId, state, {
+          message: readMessage(options),
           json: options.json,
         });
       } else {

@@ -210,6 +210,33 @@ describe('HackerOneClient', () => {
     );
   });
 
+  it('should include the response body in API error messages', async () => {
+    const mockPool = mockAgent.get('https://api.hackerone.com');
+    mockPool
+      .intercept({
+        path: '/v1/reports/1/state_changes',
+        method: 'POST',
+      })
+      .reply(422, { errors: [{ title: 'Invalid state transition' }] });
+
+    const client = new HackerOneClient({
+      apiIdentifier: 'test',
+      apiToken: 'token',
+    });
+
+    await assert.rejects(
+      async () =>
+        client.request('POST', '/reports/1/state_changes', undefined, {}),
+      (err: unknown) => {
+        assert.ok(isAppError(err));
+        assert.strictEqual(err.statusCode, 422);
+        assert.match(err.message, /^Request failed: 422 /);
+        assert.match(err.message, /Invalid state transition/);
+        return true;
+      }
+    );
+  });
+
   it('should use custom base URL when provided', async () => {
     const mockPool = mockAgent.get('https://custom.api.example.com');
     mockPool

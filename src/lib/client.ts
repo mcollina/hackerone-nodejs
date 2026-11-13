@@ -57,7 +57,13 @@ export class HackerOneClient {
       );
     }
     if (statusCode >= 400) {
-      throw apiError(`Request failed: ${statusCode}`, statusCode);
+      // Include the response body so rejected writes (e.g. an invalid state
+      // transition) show HackerOne's reason.
+      const detail = await responseBody.text().catch(() => '');
+      throw apiError(
+        `Request failed: ${statusCode}${detail ? ` ${detail}` : ''}`,
+        statusCode
+      );
     }
 
     return (await responseBody.json()) as T;

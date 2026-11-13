@@ -109,11 +109,9 @@ describe('CLI', () => {
       res.writeHead(201, { 'content-type': 'application/json' });
       res.end(
         JSON.stringify({
-          data: {
-            id: stateChange[1],
-            type: 'report',
-            attributes: { state: parsed.data?.attributes?.state },
-          },
+          id: stateChange[1],
+          type: 'report',
+          attributes: { state: parsed.data?.attributes?.state },
         })
       );
       return;

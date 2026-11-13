@@ -326,7 +326,7 @@ describe('Reports API', () => {
         .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
         .reply(201, (opts) => {
           sent = JSON.parse(String(opts.body));
-          return reportFixture;
+          return reportFixture.data;
         });
 
       const report = await changeReportState(client, 12345, ReportState.Triaged, {
@@ -349,11 +349,16 @@ describe('Reports API', () => {
         .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
         .reply(201, (opts) => {
           sent = JSON.parse(String(opts.body));
-          return reportFixture;
+          return {
+            ...reportFixture.data,
+            attributes: { ...reportFixture.data.attributes, state: 'resolved' },
+          };
         });
 
-      await changeReportState(client, '12345', ReportState.Resolved);
+      const report = await changeReportState(client, '12345', ReportState.Resolved);
 
+      assert.strictEqual(report.id, '12345');
+      assert.strictEqual(report.attributes.state, 'resolved');
       assert.deepStrictEqual(sent, {
         data: { type: 'state-change', attributes: { state: 'resolved' } },
       });

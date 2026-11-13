@@ -62,7 +62,7 @@ export async function changeReportState(
   state: ReportStateValue,
   options?: ChangeStateOptions
 ): Promise<Report> {
-  const response = await client.request<{ data: Report }>(
+  return client.request<Report>(
     'POST',
     `/reports/${id}/state_changes`,
     undefined,
@@ -76,7 +76,6 @@ export async function changeReportState(
       },
     }
   );
-  return response.data;
 }
 
 // Helper to fetch all reports (handles pagination)

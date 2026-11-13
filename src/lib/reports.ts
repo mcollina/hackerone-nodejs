@@ -43,6 +43,23 @@ export async function getReport(
   return response.data;
 }
 
+/** Move a report to triaged using HackerOne's state change endpoint. */
+export async function triageReport(
+  client: HackerOneClient,
+  id: number | string,
+  message?: string
+): Promise<Report> {
+  return client.request<Report>('POST', `/reports/${id}/state_changes`, undefined, {
+    data: {
+      type: 'state-change',
+      attributes: {
+        state: 'triaged',
+        ...(message === undefined ? {} : { message }),
+      },
+    },
+  });
+}
+
 // Helper to fetch all reports (handles pagination)
 export async function* listAllReports(
   client: HackerOneClient,

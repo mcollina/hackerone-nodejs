@@ -6,6 +6,7 @@ import {
   runReportsList,
   runReportsShow,
   runReportsComment,
+  runReportsTriage,
 } from './commands/reports.ts';
 import { runDownloadReport, runDownloadBulk } from './commands/download.ts';
 import { printError } from './output.ts';
@@ -22,6 +23,7 @@ Commands:
   reports list              List reports
   reports show <id>         Show report details
   reports comment <id>      Post a comment on a report
+  reports triage <id>       Move a report to triaged
   download <id>             Download a report with attachments
   download --program <h>    Download all reports from a program
 
@@ -41,7 +43,7 @@ Reports Options:
   --page <n>                Page number (default: 1)
   --limit <n>               Results per page (default: 25, max: 100)
   --with-comments           Include comments (requires --program)
-  --message <text>          Comment message (required for reports comment)
+  --message <text>          Required for comments; optional when triaging
   --internal                Post an internal (team-only) comment
   --attachment-id <id>      Attach a file to a comment (can be repeated)
 
@@ -65,6 +67,7 @@ Examples:
   hackerone reports comment 12345 --message "A fix has been deployed. Can you retest?"
   hackerone reports comment 12345 --message "Internal triage note" --internal
   hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
+  hackerone reports triage 12345 --message "Confirmed"
   hackerone download 12345 --output-dir ./downloads
   hackerone download --program myprogram --state triaged
 `.trim();
@@ -250,6 +253,16 @@ async function main(): Promise<void> {
             }
             return n;
           }),
+          json: options.json,
+        });
+      } else if (subcommand === 'triage') {
+        const reportId = positionals[0];
+        if (!reportId || !/^\d+$/.test(reportId)) {
+          printError('Numeric report ID required');
+          process.exit(1);
+        }
+        await runReportsTriage(client, reportId, {
+          message: options.message,
           json: options.json,
         });
       } else {

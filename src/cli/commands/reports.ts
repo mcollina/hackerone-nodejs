@@ -1,5 +1,5 @@
 import type { HackerOneClient } from '../../lib/client.ts';
-import { listReports, getReport } from '../../lib/reports.ts';
+import { listReports, getReport, triageReport } from '../../lib/reports.ts';
 import { listActivities, filterComments, createComment } from '../../lib/activities.ts';
 import type { ReportStateValue } from '../../lib/types.ts';
 import {
@@ -63,6 +63,24 @@ export async function runReportsList(
 
     if (response.links.next) {
       console.log(`\nPage ${options.page ?? 1} - more results available`);
+    }
+  } catch (err) {
+    printError(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+}
+
+export async function runReportsTriage(
+  client: HackerOneClient,
+  reportId: string,
+  options: { message?: string; json?: boolean }
+): Promise<void> {
+  try {
+    const report = await triageReport(client, reportId, options.message);
+    if (options.json) {
+      printJson(report);
+    } else {
+      console.log(`Report #${report.id}: ${report.attributes.state}`);
     }
   } catch (err) {
     printError(err instanceof Error ? err.message : String(err));

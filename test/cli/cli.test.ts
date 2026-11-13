@@ -91,6 +91,20 @@ describe('CLI', () => {
       return;
     }
 
+    if (
+      req.method === 'POST' &&
+      /^\/v1\/reports\/\d+\/state_changes$/.test(path)
+    ) {
+      const parsed = JSON.parse(body);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        id: path.split('/')[3],
+        type: 'report',
+        attributes: { state: parsed.data.attributes.state },
+      }));
+      return;
+    }
+
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(
       JSON.stringify({ errors: [{ detail: `Not found: ${req.method} ${path}` }] })
@@ -121,6 +135,35 @@ describe('CLI', () => {
       };
     }
   }
+
+  describe('reports triage', () => {
+    it('moves a report to triaged', async () => {
+      const { stdout, stderr, code } = await runCli(['reports', 'triage', '12345']);
+      assert.strictEqual(code, 0, stderr);
+      assert.match(stdout, /Report #12345: triaged/);
+      assert.deepStrictEqual(JSON.parse(requestBodies[0]), {
+        data: { type: 'state-change', attributes: { state: 'triaged' } },
+      });
+    });
+
+    it('includes an optional message', async () => {
+      const { stdout, stderr, code } = await runCli([
+        'reports', 'triage', '12345', '--message', 'Confirmed', '--json',
+      ]);
+      assert.strictEqual(code, 0, stderr);
+      assert.strictEqual(JSON.parse(stdout).attributes.state, 'triaged');
+      assert.deepStrictEqual(JSON.parse(requestBodies[0]).data.attributes, {
+        state: 'triaged', message: 'Confirmed',
+      });
+    });
+
+    it('rejects an invalid report id before sending a request', async () => {
+      const { stderr, code } = await runCli(['reports', 'triage', 'abc']);
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Numeric report ID required/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+  });
 
   describe('reports comment', () => {
     it('posts a public comment', async () => {

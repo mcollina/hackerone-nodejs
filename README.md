@@ -5,7 +5,7 @@ A TypeScript client library and CLI for the [HackerOne API](https://api.hackeron
 ## Features
 
 - ESM TypeScript library for HackerOne API v1
-- CLI for programs, reports, triaging, and downloads
+- CLI for programs, reports, and downloads
 - Basic-auth API token support via environment variables
 - Pagination helpers for reports and activities
 - Report export to JSON and Markdown
@@ -76,7 +76,6 @@ hackerone <command> [options]
 | `reports list --program <handle>` | List reports for a program |
 | `reports show <id>` | Show report details |
 | `reports comment <id>` | Post a comment on a report |
-| `reports triage <id>` | Move a report to triaged (optional `--message <text>`) |
 | `download <id>` | Download one report and its attachments |
 | `download --program <handle>` | Download all reports from a program |
 
@@ -91,7 +90,7 @@ hackerone <command> [options]
 | `--state <state>` | Filter by state; can be repeated |
 | `--severity <level>` | Filter by severity; can be repeated |
 | `--output-dir <path>` | Download directory, default `./reports` |
-| `--message <text>` | Required for `reports comment`, optional for `reports triage` |
+| `--message <text>` | Comment message (required for `reports comment`) |
 | `--internal` | Post an internal (team-only) comment |
 | `--attachment-id <id>` | Attach a file to a comment (can be repeated) |
 
@@ -121,9 +120,6 @@ hackerone reports comment 12345 --message "Internal triage note" --internal
 # Post a comment with an attached file
 hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
 
-# Move a report to triaged (requires Report Management permission)
-hackerone reports triage 12345 --message "Confirmed"
-
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads
 
@@ -152,7 +148,6 @@ import {
   listPrograms,
   listReports,
   getReport,
-  triageReport,
   listAllReports,
 } from 'hackerone';
 
@@ -174,9 +169,6 @@ console.log(reports.data.map((report) => report.attributes.title));
 const report = await getReport(client, reports.data[0].id);
 console.log(report.attributes.vulnerability_information);
 
-// Only when you intend to change the report's state:
-// const triaged = await triageReport(client, report.id, 'Confirmed');
-
 for await (const item of listAllReports(client, { program: 'myprogram' })) {
   console.log(item.id, item.attributes.state, item.attributes.title);
 }
@@ -190,7 +182,7 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | --- | --- |
 | `HackerOneClient` | Authenticated API client |
 | `listPrograms`, `getProgram`, `listStructuredScopes` | Program APIs |
-| `listReports`, `getReport`, `listAllReports`, `triageReport` | Report APIs, triage action, and pagination helper |
+| `listReports`, `getReport`, `listAllReports` | Report APIs and pagination helper |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
 | `createComment` | Post a public or internal comment on a report |
 | `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |

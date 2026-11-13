@@ -7,7 +7,7 @@ import {
   type Dispatcher,
 } from 'undici';
 import { HackerOneClient } from '../../src/lib/client.ts';
-import { listReports, getReport, listAllReports, triageReport } from '../../src/lib/reports.ts';
+import { listReports, getReport, listAllReports } from '../../src/lib/reports.ts';
 import { ReportState } from '../../src/lib/types.ts';
 import reportsFixture from '../fixtures/reports.json' with { type: 'json' };
 import reportFixture from '../fixtures/report.json' with { type: 'json' };
@@ -223,54 +223,6 @@ describe('Reports API', () => {
         result.relationships.attachments.data[0].attributes.file_name,
         'screenshot.png'
       );
-    });
-  });
-
-  describe('triageReport', () => {
-    it('posts a state change and returns the updated report', async () => {
-      const report = {
-        ...reportFixture.data,
-        attributes: { ...reportFixture.data.attributes, state: 'triaged' },
-      };
-      mockAgent.get('https://api.hackerone.com')
-        .intercept({
-          path: '/v1/reports/12345/state_changes',
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            data: { type: 'state-change', attributes: { state: 'triaged' } },
-          }),
-        })
-        .reply(200, report);
-
-      const result = await triageReport(client, 12345);
-      assert.strictEqual(result.id, '12345');
-      assert.strictEqual(result.attributes.state, 'triaged');
-    });
-
-    it('includes a message when supplied', async () => {
-      mockAgent.get('https://api.hackerone.com')
-        .intercept({
-          path: '/v1/reports/12345/state_changes',
-          method: 'POST',
-          body: JSON.stringify({
-            data: {
-              type: 'state-change',
-              attributes: { state: 'triaged', message: 'Confirmed' },
-            },
-          }),
-        })
-        .reply(200, reportFixture.data);
-
-      await triageReport(client, '12345', 'Confirmed');
-    });
-
-    it('surfaces permission failures', async () => {
-      mockAgent.get('https://api.hackerone.com')
-        .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
-        .reply(403, { errors: [{ detail: 'Forbidden' }] });
-
-      await assert.rejects(triageReport(client, 12345), /403/);
     });
   });
 

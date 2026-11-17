@@ -14,6 +14,7 @@ import {
   changeReportState,
 } from '../../src/lib/reports.ts';
 import { ReportState } from '../../src/lib/types.ts';
+import { isAppError } from '../../src/lib/errors.ts';
 import reportsFixture from '../fixtures/reports.json' with { type: 'json' };
 import reportFixture from '../fixtures/report.json' with { type: 'json' };
 
@@ -362,6 +363,76 @@ describe('Reports API', () => {
       assert.deepStrictEqual(sent, {
         data: { type: 'state-change', attributes: { state: 'resolved' } },
       });
+    });
+
+    it('should send the original report and attachments for a duplicate', async () => {
+      let sent: unknown;
+      mockAgent
+        .get('https://api.hackerone.com')
+        .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
+        .reply(201, (opts) => {
+          sent = JSON.parse(String(opts.body));
+          return reportFixture.data;
+        });
+
+      await changeReportState(client, 12345, ReportState.Duplicate, {
+        message: 'Already reported',
+        originalReportId: 11111,
+        attachmentIds: [7, 8],
+      });
+
+      assert.deepStrictEqual(sent, {
+        data: {
+          type: 'state-change',
+          attributes: {
+            state: 'duplicate',
+            message: 'Already reported',
+            original_report_id: 11111,
+            attachment_ids: [7, 8],
+          },
+        },
+      });
+    });
+
+    it('should move a report to pending-program-review', async () => {
+      let sent: unknown;
+      mockAgent
+        .get('https://api.hackerone.com')
+        .intercept({ path: '/v1/reports/12345/state_changes', method: 'POST' })
+        .reply(201, (opts) => {
+          sent = JSON.parse(String(opts.body));
+          return reportFixture.data;
+        });
+
+      await changeReportState(client, 12345, ReportState.PendingProgramReview);
+
+      assert.deepStrictEqual(sent, {
+        data: {
+          type: 'state-change',
+          attributes: { state: 'pending-program-review' },
+        },
+      });
+    });
+
+    it('should reject a missing required message without calling the API', async () => {
+      // No interceptor is registered, so any request would fail differently.
+      await assert.rejects(
+        changeReportState(client, 12345, ReportState.Informative),
+        (err: unknown) => {
+          assert.ok(isAppError(err));
+          assert.strictEqual(err.code, 'VALIDATION_ERROR');
+          assert.match(err.message, /message is required to move a report to informative/);
+          return true;
+        }
+      );
+    });
+
+    it('should reject retesting without calling the API', async () => {
+      await assert.rejects(
+        // @ts-expect-error retesting is not a ChangeableReportState
+        changeReportState(client, 12345, ReportState.Retesting),
+        /cannot be moved to retesting/
+      );
     });
   });
 });

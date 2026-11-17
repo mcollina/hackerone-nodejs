@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { HackerOneClient } from '../lib/client.ts';
 import { ReportState, type ReportStateValue } from '../lib/types.ts';
+import {
+  changeableReportStates,
+  isChangeableReportState,
+  reportStates,
+} from '../lib/states.ts';
 import { runProgramsList, runProgramsShow } from './commands/programs.ts';
 import {
   runReportsList,
@@ -48,14 +53,19 @@ Reports Options:
   --message <text>          Message for reports comment and reports state
   --message-file <path>     Read the message from a file ("-" for stdin)
   --internal                Post an internal (team-only) comment
-  --attachment-id <id>      Attach a file to a comment (can be repeated)
+  --attachment-id <id>      Attach a file to a comment or state change
+                            (can be repeated)
+  --original-report-id <id> Original report when changing the state to
+                            duplicate
 
 Download Options:
   --output-dir <path>       Output directory (default: ./reports)
   --program <handle>        Download all reports from program
   --state <state>           Filter by state when bulk downloading
 
-Valid states: new, triaged, needs-more-info, resolved, not-applicable, informative, duplicate, spam
+Report states (reports state accepts all except retesting):
+${formatReportStates()}
+  Closed reports can only move back to new or triaged.
 
 Environment:
   HACKERONE_API_IDENTIFIER  API identifier (required)
@@ -72,9 +82,42 @@ Examples:
   hackerone reports comment 12345 --message "See attached POC" --attachment-id 42
   hackerone reports comment 12345 --internal --message-file notes.md
   hackerone reports state 12345 triaged --message-file reply.md
+  hackerone reports state 12345 informative --message "Accepted risk"
+  hackerone reports state 12345 duplicate --message "Already reported" --original-report-id 11111
   hackerone download 12345 --output-dir ./downloads
   hackerone download --program myprogram --state triaged
 `.trim();
+
+function wrap(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/)) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Lists every state with its definition, aligned with the option columns.
+function formatReportStates(): string {
+  const column = 28;
+  return reportStates
+    .map(({ state, status, definition, requiresMessage }) => {
+      const label = status === 'open' ? 'Open' : 'Closed';
+      const summary = `${label}${requiresMessage ? ', message required' : ''}. ${definition}`;
+      const [first, ...rest] = wrap(summary, 80 - column);
+      return [
+        `  ${state.padEnd(column - 2)}${first}`,
+        ...rest.map((line) => `${' '.repeat(column)}${line}`),
+      ].join('\n');
+    })
+    .join('\n');
+}
 
 function getClient(): HackerOneClient {
   const apiIdentifier = process.env.HACKERONE_API_IDENTIFIER;
@@ -106,6 +149,23 @@ function readMessage(options: ParsedOptions): string | undefined {
   return options.message;
 }
 
+// With strict: false, parseArgs yields `true` for a string option given
+// without a value, so reject anything that is not a string of digits.
+function parseIds(values: Array<string | boolean>, label: string): number[] {
+  return values.map((value) => {
+    if (typeof value !== 'string') {
+      printError(`Missing ${label}`);
+      process.exit(1);
+    }
+    const n = /^\d+$/.test(value) ? Number(value) : NaN;
+    if (!Number.isSafeInteger(n) || n <= 0) {
+      printError(`Invalid ${label}: ${value}`);
+      process.exit(1);
+    }
+    return n;
+  });
+}
+
 function parseStates(values: string[]): ReportStateValue[] {
   const validStates = Object.values(ReportState);
   const result: ReportStateValue[] = [];
@@ -135,7 +195,8 @@ interface ParsedOptions {
   message: string | undefined;
   messageFile: string | undefined;
   internal: boolean;
-  attachmentIds: string[];
+  attachmentIds: Array<string | boolean>;
+  originalReportId: string | boolean | undefined;
 }
 
 function parseOptions(args: string[]): { options: ParsedOptions; positionals: string[] } {
@@ -156,6 +217,7 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       'message-file': { type: 'string' },
       internal: { type: 'boolean', default: false },
       'attachment-id': { type: 'string', multiple: true, default: [] },
+      'original-report-id': { type: 'string' },
     },
     allowPositionals: true,
     strict: false,
@@ -176,7 +238,8 @@ function parseOptions(args: string[]): { options: ParsedOptions; positionals: st
       message: values.message as string | undefined,
       messageFile: values['message-file'] as string | undefined,
       internal: values.internal as boolean,
-      attachmentIds: values['attachment-id'] as string[],
+      attachmentIds: values['attachment-id'] as Array<string | boolean>,
+      originalReportId: values['original-report-id'] as string | boolean | undefined,
     },
     positionals,
   };
@@ -267,14 +330,7 @@ async function main(): Promise<void> {
         await runReportsComment(client, reportId, {
           message,
           internal: options.internal,
-          attachmentIds: options.attachmentIds.map((id) => {
-            const n = Number(id);
-            if (!Number.isInteger(n) || n <= 0) {
-              printError(`Invalid attachment ID: ${id}`);
-              process.exit(1);
-            }
-            return n;
-          }),
+          attachmentIds: parseIds(options.attachmentIds, 'attachment ID'),
           json: options.json,
         });
       } else if (subcommand === 'state') {
@@ -283,9 +339,20 @@ async function main(): Promise<void> {
           printError('Report ID and state required');
           process.exit(1);
         }
-        const [state] = parseStates([stateArg]);
-        await runReportsState(client, reportId, state, {
+        if (!isChangeableReportState(stateArg)) {
+          printError(
+            `Invalid state: ${stateArg}. Valid states: ${changeableReportStates.join(', ')}`
+          );
+          process.exit(1);
+        }
+        const [originalReportId] =
+          options.originalReportId === undefined
+            ? []
+            : parseIds([options.originalReportId], 'original report ID');
+        await runReportsState(client, reportId, stateArg, {
           message: readMessage(options),
+          originalReportId,
+          attachmentIds: parseIds(options.attachmentIds, 'attachment ID'),
           json: options.json,
         });
       } else {

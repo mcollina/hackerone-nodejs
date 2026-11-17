@@ -266,6 +266,21 @@ describe('CLI', () => {
       assert.match(stderr, /Invalid attachment ID: abc/);
       assert.strictEqual(requestBodies.length, 0);
     });
+
+    it('errors when --attachment-id has no value', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'comment',
+        '12345',
+        '--message',
+        'x',
+        '--attachment-id',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Missing attachment ID/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
     it('reads the message from --message-file', async () => {
       const file = join(tmp, 'note.md');
       await writeFile(file, 'Line one\n\nLine two\n');
@@ -416,6 +431,135 @@ describe('CLI', () => {
       assert.strictEqual(code, 1);
       assert.match(stderr, /422/);
       assert.match(stderr, /Invalid state transition/);
+    });
+
+    it('marks a duplicate with the original report and attachments', async () => {
+      const { stdout, stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'duplicate',
+        '--message',
+        'Already reported',
+        '--original-report-id',
+        '11111',
+        '--attachment-id',
+        '7',
+        '--attachment-id',
+        '8',
+      ]);
+
+      assert.strictEqual(code, 0, stderr);
+      assert.match(stdout, /Report 12345 is now duplicate/);
+      assert.deepStrictEqual(JSON.parse(requestBodies[0]), {
+        data: {
+          type: 'state-change',
+          attributes: {
+            state: 'duplicate',
+            message: 'Already reported',
+            original_report_id: 11111,
+            attachment_ids: [7, 8],
+          },
+        },
+      });
+    });
+
+    it('errors when a required message is missing', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'informative',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /message is required to move a report to informative/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('errors on retesting, which a state change cannot set', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'retesting',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Invalid state: retesting/);
+      assert.doesNotMatch(stderr, /Valid states:.*retesting/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('errors on --original-report-id for a non-duplicate state', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'triaged',
+        '--original-report-id',
+        '11111',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /only be set when moving a report to duplicate/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('errors on an invalid original report id', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'duplicate',
+        '--message',
+        'Dupe',
+        '--original-report-id',
+        'abc',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Invalid original report ID: abc/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+
+    it('errors when --original-report-id has no value', async () => {
+      const { stderr, code } = await runCli([
+        'reports',
+        'state',
+        '12345',
+        'duplicate',
+        '--message',
+        'Dupe',
+        '--original-report-id',
+      ]);
+
+      assert.strictEqual(code, 1);
+      assert.match(stderr, /Missing original report ID/);
+      assert.strictEqual(requestBodies.length, 0);
+    });
+  });
+
+  describe('help', () => {
+    it('lists every report state with its definition', async () => {
+      const { stdout, code } = await runCli(['--help']);
+
+      assert.strictEqual(code, 0);
+      for (const state of [
+        'new',
+        'pending-program-review',
+        'triaged',
+        'needs-more-info',
+        'retesting',
+        'resolved',
+        'informative',
+        'duplicate',
+        'not-applicable',
+        'spam',
+      ]) {
+        assert.match(stdout, new RegExp(`^  ${state} +(Open|Closed)[,.] `, 'm'), state);
+      }
+      assert.match(stdout, /^  informative +Closed, message required\. /m);
     });
   });
 });

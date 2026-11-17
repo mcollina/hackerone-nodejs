@@ -1,8 +1,11 @@
 // Report states as const object (not enum)
+// See https://docs.hackerone.com/en/articles/8475030-report-states
 export const ReportState = {
   New: 'new',
+  PendingProgramReview: 'pending-program-review',
   Triaged: 'triaged',
   NeedsMoreInfo: 'needs-more-info',
+  Retesting: 'retesting',
   Resolved: 'resolved',
   NotApplicable: 'not-applicable',
   Informative: 'informative',
@@ -11,6 +14,29 @@ export const ReportState = {
 } as const;
 
 export type ReportStateValue = (typeof ReportState)[keyof typeof ReportState];
+
+/**
+ * States a report can be moved to with changeReportState(). HackerOne sets
+ * `retesting` through its retest flow, so a state change cannot target it.
+ */
+export type ChangeableReportState = Exclude<
+  ReportStateValue,
+  typeof ReportState.Retesting
+>;
+
+/** What a report state means and how it can be used. */
+export interface ReportStateInfo {
+  /** The state value used by the API. */
+  state: ReportStateValue;
+  /** Open reports still need action; closed reports are finished. */
+  status: 'open' | 'closed';
+  /** What the state means, including its effect on the reporter's reputation. */
+  definition: string;
+  /** Whether changeReportState() can move a report to this state. */
+  changeable: boolean;
+  /** Whether HackerOne requires a message to move a report to this state. */
+  requiresMessage: boolean;
+}
 
 // Configuration
 export interface HackerOneConfig {
@@ -89,8 +115,15 @@ export interface CreateCommentOptions {
 // State change
 // See https://api.hackerone.com/customer-resources/#reports-change-state
 export interface ChangeStateOptions {
-  /** Message posted with the state change. It is visible to the reporter. */
+  /**
+   * Message posted with the state change. It is visible to the reporter.
+   * Required for needs-more-info, informative, and duplicate.
+   */
   message?: string;
+  /** Only for duplicate: the ID of the original report this one duplicates. */
+  originalReportId?: number;
+  /** Optional attachment IDs to include with the message. */
+  attachmentIds?: number[];
 }
 
 // Activity

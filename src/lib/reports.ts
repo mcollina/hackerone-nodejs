@@ -1,9 +1,10 @@
 import type { HackerOneClient } from './client.ts';
+import { validateStateChange } from './states.ts';
 import type {
   Report,
   PaginatedResponse,
   ReportFilterOptions,
-  ReportStateValue,
+  ChangeableReportState,
   ChangeStateOptions,
 } from './types.ts';
 
@@ -52,16 +53,21 @@ export async function getReport(
 /**
  * Change a report's state.
  *
- * HackerOne requires a message for most transitions, and the message is
- * visible to the reporter. Use an internal comment for team-only notes.
+ * The message is visible to the reporter; use an internal comment for
+ * team-only notes. HackerOne requires a message for needs-more-info,
+ * informative, and duplicate. Invalid input throws a VALIDATION_ERROR before
+ * any request is sent; see validateStateChange(). See reportStates for what
+ * each state means.
  * See https://api.hackerone.com/customer-resources/#reports-change-state
  */
 export async function changeReportState(
   client: HackerOneClient,
   id: number | string,
-  state: ReportStateValue,
+  state: ChangeableReportState,
   options?: ChangeStateOptions
 ): Promise<Report> {
+  validateStateChange(state, options);
+
   return client.request<Report>(
     'POST',
     `/reports/${id}/state_changes`,
@@ -72,6 +78,12 @@ export async function changeReportState(
         attributes: {
           state,
           ...(options?.message ? { message: options.message } : {}),
+          ...(options?.originalReportId !== undefined
+            ? { original_report_id: options.originalReportId }
+            : {}),
+          ...(options?.attachmentIds?.length
+            ? { attachment_ids: options.attachmentIds }
+            : {}),
         },
       },
     }

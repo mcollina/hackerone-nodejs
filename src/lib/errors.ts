@@ -49,6 +49,14 @@ export function apiError(message: string, statusCode: number, cause?: Error): Ap
   });
 }
 
+/** A request rejected locally, before it is sent to HackerOne. */
+export function validationError(message: string): AppError {
+  return createAppError(message, {
+    code: 'VALIDATION_ERROR',
+    statusCode: 400,
+  });
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof Error && 'code' in error && 'statusCode' in error;
 }

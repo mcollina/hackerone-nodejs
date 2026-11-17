@@ -13,11 +13,22 @@ export type {
   Attachment,
   StructuredScope,
   ReportStateValue,
+  ChangeableReportState,
+  ReportStateInfo,
   CreateCommentOptions,
   ChangeStateOptions,
 } from './types.ts';
 
 export { ReportState } from './types.ts';
+
+// Report states
+export {
+  reportStates,
+  changeableReportStates,
+  getReportStateInfo,
+  isChangeableReportState,
+  validateStateChange,
+} from './states.ts';
 
 // Errors
 export {
@@ -25,6 +36,7 @@ export {
   notFoundError,
   rateLimitError,
   apiError,
+  validationError,
   isAppError,
   type AppError,
 } from './errors.ts';

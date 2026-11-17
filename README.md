@@ -94,9 +94,25 @@ hackerone <command> [options]
 | `--message <text>` | Message for `reports comment` (required) and `reports state` |
 | `--message-file <path>` | Read the message from a file, or `-` for stdin |
 | `--internal` | Post an internal (team-only) comment |
-| `--attachment-id <id>` | Attach a file to a comment (can be repeated) |
+| `--attachment-id <id>` | Attach a file to a comment or state change (can be repeated) |
+| `--original-report-id <id>` | Original report when changing the state to `duplicate` |
 
-Valid report states are `new`, `triaged`, `needs-more-info`, `resolved`, `not-applicable`, `informative`, `duplicate`, and `spam`.
+### Report states
+
+| State | Status | Message required | Definition |
+| --- | --- | --- | --- |
+| `new` | Open | No | The report is pending validation. Moving a closed report here reopens it for a fresh review. |
+| `pending-program-review` | Open | No | HackerOne triage has initially validated the report, and it awaits review and severity validation by the program team. Only applies to programs that use HackerOne's triage services. |
+| `triaged` | Open | No | The report is validated and escalated for remediation. The vulnerability is treated as live and reproducible until it is fixed. |
+| `needs-more-info` | Open | Yes | The reporter must provide more information to reproduce the issue or demonstrate impact. HackerOne closes the report as informative, with no reputation change, after 30 days without a reply. |
+| `retesting` | Open | No | A fix is deployed and the reporter is verifying it. The report returns to triaged if the fix fails, or moves to resolved once confirmed. HackerOne sets this state through its retest flow, not through a state change. |
+| `resolved` | Closed | No | The vulnerability is fixed and no longer reproducible; no further action is needed. The reporter gains 7 reputation and is credited in the program's hall of fame. |
+| `not-applicable` | Closed | No | The report has no valid, reproducible issue and no demonstrated security impact; explain why so the reporter can improve. The reporter loses 5 reputation and their signal drops. |
+| `informative` | Closed | Yes | The report contains valid information that needs no action, such as an out-of-scope finding, a known issue, or an accepted risk. The reporter's reputation does not change. |
+| `duplicate` | Closed | Yes | The issue was already reported or is otherwise known, or one fix resolves several reports. The reporter's reputation change depends on how the original report is closed. |
+| `spam` | Closed | No | The report does not describe a legitimate security vulnerability, or it is incomprehensible, abusive, harassing, or selling a product or service. The reporter loses 10 reputation. |
+
+`reports state` and `changeReportState()` accept every state except `retesting`, which HackerOne sets through its retest flow. The state-change message is visible to the reporter. Closed reports can only move back to `new` or `triaged`; HackerOne rejects other transitions. Definitions follow HackerOne's [report states](https://docs.hackerone.com/en/articles/8475030-report-states) and [change state API](https://api.hackerone.com/customer-resources/#reports-change-state) documentation.
 
 ### Examples
 
@@ -127,6 +143,12 @@ hackerone reports comment 12345 --internal --message-file notes.md
 
 # Triage a report, with a reply to the reporter read from stdin
 hackerone reports state 12345 triaged --message-file - < reply.md
+
+# Close a report as informative
+hackerone reports state 12345 informative --message "This is an accepted risk."
+
+# Close a report as a duplicate of another report
+hackerone reports state 12345 duplicate --message "Already reported" --original-report-id 11111
 
 # Download one report to ./downloads/12345
 hackerone download 12345 --program myprogram --output-dir ./downloads
@@ -182,6 +204,35 @@ for await (const item of listAllReports(client, { program: 'myprogram' })) {
 }
 ```
 
+### Changing a report's state
+
+```ts
+import {
+  changeReportState,
+  changeableReportStates,
+  getReportStateInfo,
+  ReportState,
+  validateStateChange,
+} from 'hackerone';
+
+// Every state with its status, definition, and message requirement
+for (const state of changeableReportStates) {
+  const info = getReportStateInfo(state)!;
+  console.log(state, info.status, info.requiresMessage, info.definition);
+}
+
+// Throws a VALIDATION_ERROR before any request when the change is invalid
+validateStateChange('duplicate', { message: 'Already reported', originalReportId: 11111 });
+
+await changeReportState(client, 12345, ReportState.Duplicate, {
+  message: 'Already reported', // visible to the reporter
+  originalReportId: 11111,
+  attachmentIds: [42],
+});
+```
+
+`changeReportState()` validates its input with `validateStateChange()` first, so a missing required message, an unknown state, or `retesting` fails without calling HackerOne. It does not know the report's current state, so HackerOne still rejects invalid transitions.
+
 The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `HackerOneClient` to use another endpoint.
 
 ## Exported API
@@ -191,12 +242,16 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | `HackerOneClient` | Authenticated API client |
 | `listPrograms`, `getProgram`, `listStructuredScopes` | Program APIs |
 | `listReports`, `getReport`, `listAllReports` | Report APIs and pagination helper |
-| `changeReportState` | Change a report's state, with an optional message to the reporter |
+| `changeReportState` | Change a report's state, with an optional message to the reporter, original report, and attachments |
+| `reportStates`, `changeableReportStates`, `getReportStateInfo` | Every report state with its status, definition, and whether a state change needs a message |
+| `isChangeableReportState`, `validateStateChange` | Check a state change before sending it |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
 | `createComment` | Post a public or internal comment on a report |
 | `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |
 | `ReportState` | Report state constants |
+| `isAppError`, `validationError` | Error helpers; local validation failures use the `VALIDATION_ERROR` code |
 | `HackerOneConfig`, `Program`, `Report`, `Activity`, `Attachment`, `StructuredScope` | TypeScript types |
+| `ReportStateValue`, `ChangeableReportState`, `ReportStateInfo`, `ChangeStateOptions` | Report state types |
 
 ## Development
 

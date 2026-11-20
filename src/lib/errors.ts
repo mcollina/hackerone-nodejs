@@ -57,6 +57,14 @@ export function validationError(message: string): AppError {
   });
 }
 
+/** A download refused because it is larger than the caller's limit. */
+export function attachmentTooLargeError(message: string): AppError {
+  return createAppError(message, {
+    code: 'ATTACHMENT_TOO_LARGE',
+    statusCode: 413,
+  });
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof Error && 'code' in error && 'statusCode' in error;
 }

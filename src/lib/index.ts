@@ -37,6 +37,7 @@ export {
   rateLimitError,
   apiError,
   validationError,
+  attachmentTooLargeError,
   isAppError,
   type AppError,
 } from './errors.ts';
@@ -63,8 +64,13 @@ export {
 
 // Attachments
 export {
+  attachmentFileName,
   downloadAttachment,
+  downloadAttachments,
   downloadReportWithAttachments,
   collectAllAttachments,
+  listReportAttachments,
   type DownloadOptions,
+  type DownloadedAttachment,
+  type ListReportAttachmentsOptions,
 } from './attachments.ts';

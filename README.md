@@ -9,7 +9,7 @@ A TypeScript client library and CLI for the [HackerOne API](https://api.hackeron
 - Basic-auth API token support via environment variables
 - Pagination helpers for reports and activities
 - Report export to JSON and Markdown
-- Attachment downloads using expiring HackerOne attachment URLs
+- Attachment downloads using expiring HackerOne attachment URLs, with safe file names and an optional size limit
 
 ## Requirements
 
@@ -166,8 +166,10 @@ reports/
     activities.json
     report.md
     attachments/
-      <files>
+      <attachment-id>-<file name>
 ```
+
+Reporters choose attachment file names, so each file is saved as its attachment ID, a dash, and the file name with folder parts and unsafe characters removed. Two attachments with the same name stay separate, and no name can write outside `attachments/`. A failed or expired download raises an error instead of saving the error response as the file.
 
 ## Library usage
 
@@ -203,6 +205,27 @@ for await (const item of listAllReports(client, { program: 'myprogram' })) {
   console.log(item.id, item.attributes.state, item.attributes.title);
 }
 ```
+
+### Downloading attachments
+
+```ts
+import { attachmentFileName, downloadAttachments, listReportAttachments } from 'hackerone';
+
+// Attachments on the report and on its comments and other activities.
+// Download links expire, so download soon after fetching them.
+const attachments = await listReportAttachments(client, 12345);
+
+const downloaded = await downloadAttachments(attachments, './downloads/12345', {
+  maxBytes: 50 * 1024 * 1024, // optional; larger attachments throw ATTACHMENT_TOO_LARGE
+});
+for (const { attachment, path } of downloaded) {
+  console.log(attachment.attributes.content_type, path);
+}
+
+attachmentFileName(attachments[0]); // for example "4242-poc.png"
+```
+
+Each file is written under a temporary name and renamed once complete, so a failed download leaves no partial file and does not replace an existing one. A download link that does not return HTTP 200, for example once it has expired, throws an `API_ERROR`. `downloadAttachments()` stops at the first failure; files already downloaded are kept.
 
 ### Changing a report's state
 
@@ -247,10 +270,14 @@ The client defaults to `https://api.hackerone.com/v1`. Pass `baseUrl` to `Hacker
 | `isChangeableReportState`, `validateStateChange` | Check a state change before sending it |
 | `listActivities`, `listAllActivities`, `filterComments` | Incremental activity APIs |
 | `createComment` | Post a public or internal comment on a report |
-| `downloadAttachment`, `downloadReportWithAttachments`, `collectAllAttachments` | Download helpers |
+| `listReportAttachments` | Fetch a report's attachments, including those on comments and other activities |
+| `downloadAttachments`, `downloadAttachment`, `downloadReportWithAttachments` | Download helpers, with an optional `maxBytes` limit |
+| `attachmentFileName` | The safe file name an attachment is saved under |
+| `collectAllAttachments` | Attachments of a report and its activities, each listed once |
 | `ReportState` | Report state constants |
-| `isAppError`, `validationError` | Error helpers; local validation failures use the `VALIDATION_ERROR` code |
+| `isAppError`, `validationError`, `attachmentTooLargeError` | Error helpers; local validation failures use the `VALIDATION_ERROR` code, and downloads over `maxBytes` use `ATTACHMENT_TOO_LARGE` |
 | `HackerOneConfig`, `Program`, `Report`, `Activity`, `Attachment`, `StructuredScope` | TypeScript types |
+| `DownloadOptions`, `DownloadedAttachment`, `ListReportAttachmentsOptions` | Attachment download types |
 | `ReportStateValue`, `ChangeableReportState`, `ReportStateInfo`, `ChangeStateOptions` | Report state types |
 
 ## Development
